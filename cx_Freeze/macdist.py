@@ -89,6 +89,7 @@ class bdist_mac(Command):
             '--deep option.'),
         ('codesign-resource-rules', None, 'Plist file to be passed to ' \
             'codesign\'s --resource-rules option.'),
+        ('rpath-lib-folder=', None, 'replace @rpath with given folder for any files')
     ]
 
     def initialize_options(self):
@@ -101,6 +102,7 @@ class bdist_mac(Command):
         self.codesign_entitlements = None
         self.codesign_deep = None
         self.codesign_resource_rules = None
+        self.rpath_lib_folder = None
 
     def finalize_options(self):
         self.include_frameworks = normalize_to_list(self.include_frameworks)
@@ -124,20 +126,22 @@ class bdist_mac(Command):
         plist.close()
 
     def setRelativeReferencePaths(self):
-        """ For all files in Contents/MacOS, check if they are binaries
-            with references to other files in that dir. If so, make those
-            references relative. The appropriate commands are applied to all
-            files; they will just fail for files on which they do not apply."""
+        """ Create a list of all the Mach-O binaries in Contents/MacOS.
+            Then, check if they contain references to other files in
+            that dir. If so, make those references relative. """
         files = []
         for root, dirs, dir_files in os.walk(self.binDir):
-            files.extend([os.path.join(root, f).replace(self.binDir + "/", "")
-                          for f in dir_files])
+            for f in dir_files:
+                p = subprocess.Popen(("file", os.path.join(root, f)), stdout=subprocess.PIPE)
+                try:
+                    if "Mach-O" in p.stdout.readline():
+                        files.append(os.path.join(root, f).replace(self.binDir + "/", ""))
+                        print(os.path.join(root, f))
+                except Exception as e:
+                        print("error {} skipping".format(e))
         for fileName in files:
 
-            # install_name_tool can't handle zip files or directories
             filePath = os.path.join(self.binDir, fileName)
-            if fileName.endswith('.zip'):
-                continue
 
             # ensure write permissions
             mode = os.stat(filePath).st_mode
@@ -156,11 +160,15 @@ class bdist_mac(Command):
             for reference in references:
 
                 # find the actual referenced file name
-                referencedFile = reference.decode().strip().split()[0]
+                origin_referencedFile = reference.decode().strip().split()[0]
+                referencedFile = origin_referencedFile
 
                 if referencedFile.startswith('@executable_path'):
                     # the referencedFile is already a relative path (to the executable)
                     continue
+
+                if self.rpath_lib_folder is not None:
+                    referencedFile = str(referencedFile).replace("@rpath", self.rpath_lib_folder)
 
                 path, name = os.path.split(referencedFile)
 
@@ -171,16 +179,27 @@ class bdist_mac(Command):
                 if (name not in files and not path.startswith('/usr') and not
                         path.startswith('/System')):
                     print(referencedFile)
-                    self.copy_file(referencedFile,
-                                   os.path.join(self.binDir, name))
-                    files.append(name)
+
+                    try:
+                        if referencedFile.find("@loader_path") == -1:  # Only copy when not is a loader_path
+                            self.copy_file(referencedFile, os.path.join(self.binDir, name))
+                    except Exception as e:
+                        print("issue copying {} to {} error {} skipping".format(referencedFile, os.path.join(self.binDir, name), e))
+                    else:
+                        files.append(name)
 
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    newReference = '@executable_path/' + name
-                    subprocess.call(('install_name_tool', '-change',
-                                    referencedFile, newReference, filePath))
+                    if origin_referencedFile.find("@loader_path") != -1:
+                        newReference = '@executable_path/lib/' + name
+                    else:
+                        newReference = '@executable_path/' + name
+                    int_command = ('install_name_tool', '-change',
+                                    origin_referencedFile, newReference, filePath)
+                    print(int_command)
+                    int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
+                    print(int_result.stdout.readlines())
 
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
