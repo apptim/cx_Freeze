@@ -204,7 +204,9 @@ class bdist_mac(Command):
             # Get the full path to reference and move to lib folder
             if fileName.endswith(".dylib"):
                 print(filePath)
-                print(os.path.join(self.buildDir, fileName))
+                print(self.binDir)
+                print(fileName)
+                print(os.path.join(self.binDir, fileName))
                     
 
     def find_qt_menu_nib(self):
