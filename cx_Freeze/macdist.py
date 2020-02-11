@@ -200,6 +200,11 @@ class bdist_mac(Command):
                     print(int_command)
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
+                    
+                    # Get the full path to reference and move to lib folder
+                    if origin_referencedFile.find("@loader_path") != -1:
+                        print(os.path.join(filePath, path.replace("@loader_path",""), name))
+                    
 
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
