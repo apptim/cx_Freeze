@@ -191,7 +191,7 @@ class bdist_mac(Command):
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    if origin_referencedFile.find("@loader_path") != -1:
+                    if origin_referencedFile.find("@loader_path") != -1 or (path.startswith('/usr') or path.startswith('/System')):
                         newReference = '@executable_path/lib/' + name
                     else:
                         newReference = '@executable_path/' + name
