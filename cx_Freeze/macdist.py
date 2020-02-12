@@ -170,6 +170,8 @@ class bdist_mac(Command):
                 if self.rpath_lib_folder is not None:
                     referencedFile = str(referencedFile).replace("@rpath", self.rpath_lib_folder)
 
+                referencedFile = str(referencedFile).replace("@loader_path", os.path.dirname(filePath))
+                
                 path, name = os.path.split(referencedFile)
 
                 #some referenced files have not previously been copied to the
