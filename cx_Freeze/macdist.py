@@ -181,8 +181,7 @@ class bdist_mac(Command):
                     print(referencedFile)
 
                     try:
-                        if referencedFile.find("@loader_path") == -1:  # Only copy when not is a loader_path
-                            self.copy_file(referencedFile, os.path.join(self.binDir, name))
+                        self.copy_file(referencedFile, os.path.join(self.binDir, name))
                     except Exception as e:
                         print("issue copying {} to {} error {} skipping".format(referencedFile, os.path.join(self.binDir, name), e))
                     else:
@@ -191,23 +190,16 @@ class bdist_mac(Command):
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    if origin_referencedFile.find("@loader_path") != -1 or (path.startswith('/usr') or path.startswith('/System')):
-                        newReference = '@executable_path/lib/' + name
-                    else:
-                        newReference = '@executable_path/' + name
+                    newReference = '@executable_path/lib/' + name
                     int_command = ('install_name_tool', '-change',
                                     origin_referencedFile, newReference, filePath)
                     print(int_command)
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
-                    
-            # Get the full path to reference and move to lib folder
-            if fileName.endswith(".dylib"):
-                print(filePath)
-                print(self.binDir)
-                print(fileName)
-                print(os.path.join(self.binDir, fileName))
-                    
+                    if name.endswith(".dylib"):
+                        orig_ref = str(referencedFile).replace("@loaderpath", os.path.dirname(filePath))
+                        print("copy to lib:{lib}".format(lib=orig_ref))
+                        self.copy_file(orig_ref, os.path.join(self.binDir, "lib", name))                    
 
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
