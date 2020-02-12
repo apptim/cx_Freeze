@@ -165,8 +165,8 @@ class bdist_mac(Command):
                 
                 print("  ref:{ref}".format(ref=origin_referencedFile))
 
-                if referencedFile.startswith('@executable_path'):
-                    # the referencedFile is already a relative path (to the executable)
+                if referencedFile.startswith('@executable_path') or referencedFile.startswith('@loader_path'):
+                    # the referencedFile is already a relative path (to the executable or library)
                     continue
 
                 if self.rpath_lib_folder is not None:
@@ -184,10 +184,9 @@ class bdist_mac(Command):
                         path.startswith('/System')):
                     print(referencedFile)
 
-                    try:
-                        if referencedFile.find("@loader_path") == -1:  # Only copy when not is a loader_path
-                            print("copying {} to {} ".format(referencedFile, os.path.join(self.binDir, name)))
-                            self.copy_file(referencedFile, os.path.join(self.binDir, name))
+                    try:                        
+                        print("copying {} to {} ".format(referencedFile, os.path.join(self.binDir, name)))
+                        self.copy_file(referencedFile, os.path.join(self.binDir, name))
                     except Exception as e:
                         print("issue copying {} to {} error {} skipping".format(referencedFile, os.path.join(self.binDir, name), e))
                     else:
@@ -196,7 +195,7 @@ class bdist_mac(Command):
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    if origin_referencedFile.find("@loader_path") != -1 or (path.startswith('/usr') or path.startswith('/System')):
+                    if path.startswith('/usr') or path.startswith('/System'):
                         newReference = '@executable_path/lib/' + name
                     else:
                         newReference = '@executable_path/' + name
