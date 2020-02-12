@@ -199,10 +199,10 @@ class bdist_mac(Command):
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
                     if name.endswith(".dylib") and "@loader_path" in origin_referencedFile:
-                        orig_ref = str(referencedFile).replace("@loaderpath", os.path.dirname(filePath))
+                        orig_ref = os.path.abspath(str(referencedFile).replace("@loaderpath", os.path.dirname(filePath)))
                         try:
                             print("move to lib:{lib}".format(lib=orig_ref))
-                            self.move_file(orig_ref, os.path.join(self.binDir, "lib", name))                    
+                            self.copy_file(orig_ref, os.path.join(self.binDir, "lib", name))
                         except Exception as e:
                             print("issue moving {} to {} error {} skipping".format(orig_ref, os.path.join(self.binDir, "lib", name), e))
                     
