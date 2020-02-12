@@ -198,10 +198,10 @@ class bdist_mac(Command):
                     print(int_command)
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
-                    if name.endswith(".dylib"):
+                    if name.endswith(".dylib") and "@loader_path" in origin_referencedFile:
                         orig_ref = str(referencedFile).replace("@loaderpath", os.path.dirname(filePath))
-                        print("copy to lib:{lib}".format(lib=orig_ref))
-                        self.copy_file(orig_ref, os.path.join(self.binDir, "lib", name))                    
+                        print("move to lib:{lib}".format(lib=orig_ref))
+                        self.move_file(orig_ref, os.path.join(self.binDir, "lib", name))                    
 
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
