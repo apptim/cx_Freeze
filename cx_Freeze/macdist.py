@@ -136,9 +136,9 @@ class bdist_mac(Command):
                 try:
                     if "Mach-O" in p.stdout.readline():
                         files.append(os.path.join(root, f).replace(self.binDir + "/", ""))
-                        print(os.path.join(root, f))
+                        print("Mach-O file:{mf}".format(mf=os.path.join(root, f)))
                 except Exception as e:
-                        print("error {} skipping".format(e))
+                        print("error processing Mach-O file {} skipping".format(e))
         for fileName in files:
 
             filePath = os.path.join(self.binDir, fileName)
@@ -162,6 +162,8 @@ class bdist_mac(Command):
                 # find the actual referenced file name
                 origin_referencedFile = reference.decode().strip().split()[0]
                 referencedFile = origin_referencedFile
+                
+                print("  ref:{ref}".format(ref=origin_referencedFile))
 
                 if referencedFile.startswith('@executable_path'):
                     # the referencedFile is already a relative path (to the executable)
@@ -170,9 +172,9 @@ class bdist_mac(Command):
                 if self.rpath_lib_folder is not None:
                     referencedFile = str(referencedFile).replace("@rpath", self.rpath_lib_folder)
 
-                referencedFile = str(referencedFile).replace("@loader_path", os.path.dirname(filePath))
-                
                 path, name = os.path.split(referencedFile)
+
+                print("name:{name} path:{path}".format(name=name, path=path))
 
                 #some referenced files have not previously been copied to the
                 #executable directory - the assumption is that you don't need
@@ -183,7 +185,9 @@ class bdist_mac(Command):
                     print(referencedFile)
 
                     try:
-                        self.copy_file(referencedFile, os.path.join(self.binDir, name))
+                        if referencedFile.find("@loader_path") == -1:  # Only copy when not is a loader_path
+                            print("copying {} to {} ".format(referencedFile, os.path.join(self.binDir, name)))
+                            self.copy_file(referencedFile, os.path.join(self.binDir, name))
                     except Exception as e:
                         print("issue copying {} to {} error {} skipping".format(referencedFile, os.path.join(self.binDir, name), e))
                     else:
@@ -192,19 +196,16 @@ class bdist_mac(Command):
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    newReference = '@executable_path/lib/' + name
+                    if origin_referencedFile.find("@loader_path") != -1 or (path.startswith('/usr') or path.startswith('/System')):
+                        newReference = '@executable_path/lib/' + name
+                    else:
+                        newReference = '@executable_path/' + name
                     int_command = ('install_name_tool', '-change',
                                     origin_referencedFile, newReference, filePath)
                     print(int_command)
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
-                    if name.endswith(".dylib") and "@loader_path" in origin_referencedFile:
-                        orig_ref = os.path.abspath(str(referencedFile).replace("@loaderpath", os.path.dirname(filePath)))
-                        try:
-                            print("move to lib:{lib}".format(lib=orig_ref))
-                            self.copy_file(orig_ref, os.path.join(self.binDir, "lib", name))
-                        except Exception as e:
-                            print("issue moving {} to {} error {} skipping".format(orig_ref, os.path.join(self.binDir, "lib", name), e))
+                    
                     
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
