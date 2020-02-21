@@ -136,9 +136,9 @@ class bdist_mac(Command):
                 try:
                     if "Mach-O" in p.stdout.readline():
                         files.append(os.path.join(root, f).replace(self.binDir + "/", ""))
-                        print(os.path.join(root, f))
+                        print("Mach-O file:{mf}".format(mf=os.path.join(root, f)))
                 except Exception as e:
-                        print("error {} skipping".format(e))
+                        print("error processing Mach-O file {} skipping".format(e))
         for fileName in files:
 
             filePath = os.path.join(self.binDir, fileName)
@@ -162,15 +162,19 @@ class bdist_mac(Command):
                 # find the actual referenced file name
                 origin_referencedFile = reference.decode().strip().split()[0]
                 referencedFile = origin_referencedFile
+                
+                print("  ref:{ref}".format(ref=origin_referencedFile))
 
-                if referencedFile.startswith('@executable_path'):
-                    # the referencedFile is already a relative path (to the executable)
+                if referencedFile.startswith('@executable_path') or referencedFile.startswith('@loader_path'):
+                    # the referencedFile is already a relative path (to the executable or library)
                     continue
 
                 if self.rpath_lib_folder is not None:
                     referencedFile = str(referencedFile).replace("@rpath", self.rpath_lib_folder)
 
                 path, name = os.path.split(referencedFile)
+
+                print("name:{name} path:{path}".format(name=name, path=path))
 
                 #some referenced files have not previously been copied to the
                 #executable directory - the assumption is that you don't need
@@ -180,9 +184,9 @@ class bdist_mac(Command):
                         path.startswith('/System')):
                     print(referencedFile)
 
-                    try:
-                        if referencedFile.find("@loader_path") == -1:  # Only copy when not is a loader_path
-                            self.copy_file(referencedFile, os.path.join(self.binDir, name))
+                    try:                        
+                        print("copying {} to {} ".format(referencedFile, os.path.join(self.binDir, name)))
+                        self.copy_file(referencedFile, os.path.join(self.binDir, name))
                     except Exception as e:
                         print("issue copying {} to {} error {} skipping".format(referencedFile, os.path.join(self.binDir, name), e))
                     else:
@@ -191,7 +195,7 @@ class bdist_mac(Command):
                 # see if we provide the referenced file;
                 # if so, change the reference
                 if name in files:
-                    if origin_referencedFile.find("@loader_path") != -1 or (path.startswith('/usr') or path.startswith('/System')):
+                    if path.startswith('/usr') or path.startswith('/System'):
                         newReference = '@executable_path/lib/' + name
                     else:
                         newReference = '@executable_path/' + name
@@ -200,7 +204,8 @@ class bdist_mac(Command):
                     print(int_command)
                     int_result = subprocess.Popen(int_command, stdout=subprocess.PIPE)
                     print(int_result.stdout.readlines())
-
+                    
+                    
     def find_qt_menu_nib(self):
         """Returns a location of a qt_menu.nib folder, or None if this is not
            a Qt application."""
