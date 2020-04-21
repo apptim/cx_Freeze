@@ -33,6 +33,14 @@ To build with MSVC versions after 9.0 use this trick:
 set VS100COMNTOOLS=%VS140COMNTOOLS%
 ```
 
+# Usage
+
+On each main function that will be used as an executable, this function needs to be called first: 
+```
+freeze_support()
+```
+
+
 # Documentation
 
 The official documentation is available
